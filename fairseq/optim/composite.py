@@ -156,6 +156,30 @@ class CompositeOptimizer(torch.optim.Optimizer):
     def zero_grad(self):
         for opt in self.optimizers.values():
             opt.zero_grad()
+    
+    @property
+    def param_groups(self):
+        for opt in self.optimizers.values():
+            for group in opt.param_groups:
+                yield group
+    
+    def state_dict(self):
+        """Return the LR scheduler state dict."""
+        return {k: s.state_dict() for k, s in self.optimizers.items()}
+
+    def load_state_dict(self, state_dict, optimizer_overrides=None):
+        """Load an LR scheduler state dict."""
+        for k, state in state_dict.items():
+            if k not in self.optimizers:
+                # skip extra keys like "loss_scale" added by fp16 optimizer
+                continue
+
+            overrides = (
+                optimizer_overrides[k]
+                if isinstance(optimizer_overrides, dict) and k in optimizer_overrides
+                else None
+            )
+            self.optimizers[k].load_state_dict(state, optimizer_overrides=overrides)
 
 
 class CompositeLRScheduler(FairseqLRScheduler):

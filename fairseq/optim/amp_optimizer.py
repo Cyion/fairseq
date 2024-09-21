@@ -103,3 +103,22 @@ class AMPOptimizer(optim.FairseqOptimizer):
     @property
     def supports_flat_params(self):
         return self.fp32_optimizer.supports_flat_params
+    
+    def state_dict(self):
+        """Return the optimizer's state dict."""
+        state_dict = self.fp32_optimizer.state_dict()
+        if self.scaler is not None:
+            state_dict["scaler"] = self.scaler.state_dict()
+        return state_dict
+
+    def load_state_dict(self, state_dict, optimizer_overrides=None):
+        """Load an optimizer state dict.
+
+        In general we should prefer the configuration of the existing optimizer
+        instance (e.g., learning rate) over that found in the state_dict. This
+        allows us to resume training from a checkpoint using a new set of
+        optimizer args.
+        """
+        if "scaler" in state_dict and self.scaler is not None:
+            self.scaler.load_state_dict(state_dict["scaler"])
+        self.fp32_optimizer.load_state_dict(state_dict, optimizer_overrides)
